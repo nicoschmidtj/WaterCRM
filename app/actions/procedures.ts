@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { parseFormData, sanitizeText, zProcedureCreate } from "@/lib/validation";
+import { parseFormData, sanitizeText, zProcedureCreate, StepUpdateSchema } from "@/lib/validation";
 import { Prisma } from "@prisma/client";
 import { TEMPLATES_BY_KEY, flattenTemplate } from "@/lib/procedureRepo";
 import { revalidatePath } from "next/cache";
@@ -17,12 +17,12 @@ export async function createProcedure(formData: FormData) {
     return redirect(`${redirectTo}?error=missing_fields`);
   }
 
-  const { clientId, type, title, region, province, generalInfo, proposalId, mode, templateKey, includeGroups, customSteps } = data as any;
+  const { clientId, type, title, region, province, generalInfo, proposalId, mode, templateKey, includeGroups, customSteps } = data;
   if (!clientId || !type) return redirect(`${redirectTo}${redirectTo.includes("?") ? "&" : "?"}error=missing_fields`);
 
   let waterRights: Array<{ naturaleza: string; foja: string; numero: string; anio: number; cbr: string }> = [];
   if (data["wr[data]"]) {
-    try { waterRights = JSON.parse(data["wr[data]"] as any) || []; } catch { waterRights = []; }
+    try { waterRights = JSON.parse(data["wr[data]"] as string) || []; } catch { waterRights = []; }
   }
 
   let stepTitles: string[] = [];
@@ -187,19 +187,24 @@ export async function deleteProcedureFromForm(formData: FormData) {
 }
 
 export async function updateStepFromForm(formData: FormData) {
-  const stepId = Number(formData.get("stepId"));
-  const done = formData.get("done") === "on" || formData.get("done") === "true";
-  const comment = sanitizeText(String(formData.get("comment") || ""));
-  const doneAtStr = String(formData.get("doneAt") || "");
+  const redirectTo = String(formData.get("redirectTo") || "/gestiones");
+  let data: z.infer<typeof StepUpdateSchema>;
+  try {
+    data = parseFormData(formData, StepUpdateSchema);
+  } catch {
+    return redirect(`${redirectTo}?error=invalid_step`);
+  }
+
+  const { stepId, done, doneAt, comment } = data;
   const milestoneIdStr = String(formData.get("milestoneId") || "");
-  if (!stepId) return;
-  const doneAt = done ? (doneAtStr ? new Date(doneAtStr) : new Date()) : null;
+  const doneAtDate = done ? (doneAt ? new Date(doneAt) : new Date()) : null;
+
   await prisma.step.update({
     where: { id: stepId },
     data: {
       done,
-      doneAt,
-      comment: comment || null,
+      doneAt: doneAtDate,
+      comment: comment ? sanitizeText(comment) : null,
       milestoneId: milestoneIdStr ? Number(milestoneIdStr) : null,
     },
   });

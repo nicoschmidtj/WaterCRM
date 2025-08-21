@@ -115,6 +115,7 @@ export default async function ProcedureDetail({ procedureId }: ProcedureDetailPr
             <div key={step.id} className="rounded-xl p-3 glass mb-3">
               <form action={updateStepFromForm} className="grid grid-cols-12 gap-3">
                 <input type="hidden" name="stepId" value={step.id} />
+                <input type="hidden" name="redirectTo" value={`/gestiones?pid=${procedure.id}`} />
 
                 {/* Fila 1: checkbox + título (col 1-8) | fecha (col 9-12) */}
                 <div className="col-span-12 md:col-span-8 flex items-center gap-3">

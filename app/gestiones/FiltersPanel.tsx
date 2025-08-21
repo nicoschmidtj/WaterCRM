@@ -1,18 +1,17 @@
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { STATUS } from "@/lib/constants";
-import { PROCEDURE_TYPES } from "@/lib/constants";
 import { TEMPLATES, CATEGORY_LABELS, groupTemplatesByCategory, type TemplateCategory } from "@/lib/procedureRepo";
 import RegionProvinciaSelect from "@/components/RegionProvinciaSelect";
-import { parseFilters } from "@/lib/filters";
+import type { Filters } from "@/lib/filters";
 
 interface FiltersPanelProps {
-  searchParams: any;
+  searchParams: Filters;
   clients: any[];
 }
 
 export default function FiltersPanel({ searchParams, clients }: FiltersPanelProps) {
-  const params = parseFilters(searchParams);
+  const params = searchParams;
   return (
     <Card className="glass">
       <h3 className="text-base md:text-lg font-medium mb-4">Filtros</h3>
@@ -20,23 +19,23 @@ export default function FiltersPanel({ searchParams, clients }: FiltersPanelProp
       <form className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-ink mb-1">Cliente</label>
-            <select className="select-glass rounded-xl px-3 py-2 w-full" name="client" defaultValue={params.client || ""}>
+            <label htmlFor="filtro-cliente" className="block text-xs font-medium text-ink mb-1">Cliente</label>
+            <select id="filtro-cliente" className="select-glass rounded-xl px-3 py-2 w-full" name="client" defaultValue={params.client || ""}>
               <option value="">Todos</option>
               {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-ink mb-1">Estado</label>
-            <select className="select-glass rounded-xl px-3 py-2 w-full" name="status" defaultValue={params.status || ""}>
+            <label htmlFor="filtro-estado" className="block text-xs font-medium text-ink mb-1">Estado</label>
+            <select id="filtro-estado" className="select-glass rounded-xl px-3 py-2 w-full" name="status" defaultValue={params.status || ""}>
               <option value="">Todos</option>
               {STATUS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
                      {/* Categoría */}
            <div className="space-y-2">
-             <div className="form-label">Categoría</div>
-             <select name="category" defaultValue={params.category ?? ""} className="select-glass rounded-xl px-3 py-2 w-full">
+             <label htmlFor="filtro-categoria" className="form-label">Categoría</label>
+             <select id="filtro-categoria" name="category" defaultValue={params.category ?? ""} className="select-glass rounded-xl px-3 py-2 w-full">
                <option value="">Todas</option>
                <option value="ADMIN">Administrativo</option>
                <option value="JUDICIAL">Judicial</option>
@@ -44,11 +43,11 @@ export default function FiltersPanel({ searchParams, clients }: FiltersPanelProp
                <option value="CORRETAJE">Corretaje</option>
              </select>
            </div>
-           
+
            {/* Tipo agrupado por categoría */}
            <div className="space-y-2">
-             <div className="form-label">Tipo</div>
-             <select name="type" defaultValue={params.type ?? ""} className="select-glass rounded-xl px-3 py-2 w-full">
+             <label htmlFor="filtro-tipo" className="form-label">Tipo</label>
+             <select id="filtro-tipo" name="type" defaultValue={params.type ?? ""} className="select-glass rounded-xl px-3 py-2 w-full">
                <option value="">Todos</option>
                {Object.entries(groupTemplatesByCategory()).map(([cat, arr]) => (
                  <optgroup key={cat} label={CATEGORY_LABELS[cat as TemplateCategory]}>
@@ -70,18 +69,18 @@ export default function FiltersPanel({ searchParams, clients }: FiltersPanelProp
            {/* Tags */}
            <div className="space-y-2">
              <div className="form-label">Tags</div>
-             <label className="flex items-center gap-2 text-sm">
-               <input type="checkbox" name="tagDelegable" defaultChecked={params.tagDelegable === true} />
-               <span>#Delegable</span>
-             </label>
-             <label className="flex items-center gap-2 text-sm">
-               <input type="checkbox" name="tagPrioridad" defaultChecked={params.tagPrioridad === true} />
-               <span>#Prioridad</span>
-             </label>
+             <div className="flex items-center gap-2 text-sm">
+               <input id="filtro-tagDelegable" type="checkbox" name="tagDelegable" defaultChecked={params.tagDelegable === true} />
+               <label htmlFor="filtro-tagDelegable">#Delegable</label>
+             </div>
+             <div className="flex items-center gap-2 text-sm">
+               <input id="filtro-tagPrioridad" type="checkbox" name="tagPrioridad" defaultChecked={params.tagPrioridad === true} />
+               <label htmlFor="filtro-tagPrioridad">#Prioridad</label>
+             </div>
            </div>
           <div>
-            <label className="block text-xs font-medium text-ink mb-1">Orden</label>
-            <select className="select-glass rounded-xl px-3 py-2 w-full" name="order" defaultValue={params.order || "lastActionAt_desc"}>
+            <label htmlFor="filtro-orden" className="block text-xs font-medium text-ink mb-1">Orden</label>
+            <select id="filtro-orden" className="select-glass rounded-xl px-3 py-2 w-full" name="order" defaultValue={params.order || "lastActionAt_desc"}>
               <option value="createdAt_desc">Creación ↓</option>
               <option value="lastActionAt_desc">Últ. acción ↓</option>
               <option value="lastActionAt_asc">Últ. acción ↑</option>
