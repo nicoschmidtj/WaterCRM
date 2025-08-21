@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  rut       String   @unique
+  name      String
+  alias     String?
+  email     String?
+  phone     String?
+  contacts  String? // JSON serializado: array de { nombre, correo, telefono }
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  procedures Procedure[]
+  proposals  Proposal[]
+
+  @@index([name])
+}
+
+model Proposal {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  title       String
+  description String?
+  billingMode String   @default("HITOS") // antes enum BillingMode
+  totalFeeUF  Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client     Client      @relation(fields: [clientId], references: [id])
+  milestones Milestone[]
+  procedures Procedure[] // backref para Procedure.proposal
+
+  @@index([clientId])
+}
+
+model Milestone {
+  id          Int       @id @default(autoincrement())
+  proposalId  Int
+  title       String
+  feeUF       Decimal?
+  dueDate     DateTime?
+  isTriggered Boolean   @default(false)
+  triggeredAt DateTime?
+  note        String?
+
+  proposal Proposal @relation(fields: [proposalId], references: [id])
+  step     Step?
+
+  @@index([proposalId])
+  @@index([isTriggered])
+  @@index([dueDate])
+  @@index([triggeredAt])
+}
+
+model Procedure {
+  id           Int       @id @default(autoincrement())
+  clientId     Int
+  proposalId   Int?
+  type         String // antes enum ProcedureType
+  title        String?
+  status       String    @default("PENDING") // antes enum Status
+  region       String?
+  province     String?
+  generalInfo  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastActionAt DateTime?
+
+  client   Client    @relation(fields: [clientId], references: [id])
+  proposal Proposal? @relation(fields: [proposalId], references: [id])
+
+  steps       Step[]
+  expenses    Expense[]
+  todos       Todo[]
+  waterRights WaterRight[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([lastActionAt])
+}
+
+model Step {
+  id          Int       @id @default(autoincrement())
+  procedureId Int
+  order       Int
+  title       String
+  done        Boolean   @default(false)
+  doneAt      DateTime?
+  comment     String?
+  milestoneId Int?      @unique // 1:1 verdadero con Milestone
+
+  procedure Procedure  @relation(fields: [procedureId], references: [id])
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+}
+
+model WaterRight {
+  id          Int    @id @default(autoincrement())
+  procedureId Int
+  foja        String
+  numero      String
+  anio        Int
+  cbr         String
+  naturaleza  String @default("SUBTERRANEO") // antes enum Naturaleza
+
+  procedure Procedure @relation(fields: [procedureId], references: [id])
+}
+
+model Expense {
+  id             Int       @id @default(autoincrement())
+  procedureId    Int
+  reason         String
+  documentType   String    @default("OTRO") // antes enum DocType
+  documentNumber String?
+  amountUF       Decimal
+  organism       String?
+  paidAt         DateTime?
+  billedAt       DateTime?
+
+  procedure Procedure @relation(fields: [procedureId], references: [id])
+}
+
+model Todo {
+  id          Int       @id @default(autoincrement())
+  procedureId Int
+  text        String
+  dueDate     DateTime?
+  done        Boolean   @default(false)
+
+  procedure Procedure @relation(fields: [procedureId], references: [id])
+}
+
+model UFRate {
+  date  DateTime @id
+  value Decimal // CLP por UF en esa fecha
+}

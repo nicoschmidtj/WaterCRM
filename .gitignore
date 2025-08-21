@@ -1,0 +1,40 @@
+Set-Location $DST
+
+@"
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.npm/
+.yarn/
+.pnpm-store/
+.next/
+.turbo/
+.parcel-cache/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PHP / Composer / Frameworks
+vendor/
+storage/
+cache/
+logs/
+
+# Otros
+*.log
+*.tmp
+.env
+.env.*
+tmp/
+"@ | Out-File -Encoding utf8 .gitignore
