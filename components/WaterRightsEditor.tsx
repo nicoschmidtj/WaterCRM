@@ -18,8 +18,8 @@ export default function WaterRightsEditor({ name = "wr" }: Props) {
       <input type="hidden" name={`${name}[data]`} value={JSON.stringify(items)} />
       {items.map((w, idx) => (
         <div key={idx} className="grid grid-cols-5 gap-2">
-                          <select className="select-glass" value={w.naturaleza}
-                  onChange={e => update(idx, { ...w, naturaleza: e.target.value as any })}>
+          <select className="select-glass" value={w.naturaleza}
+                  onChange={e => update(idx, { ...w, naturaleza: e.target.value as WaterRight["naturaleza"] })}>
             <option value="SUBTERRANEO">Subterráneo</option>
             <option value="SUPERFICIAL">Superficial</option>
           </select>

@@ -1,20 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { fmtCLP } from "@/lib/utils";
+import { formatUF, toNumberSafe } from "@/lib/decimal";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-async function getData(query: any) {
-  const whereMilestone: any = {};
-  const whereProcedure: any = {};
+async function getData(query: Record<string, string | string[] | undefined>) {
+  const whereMilestone: Prisma.MilestoneWhereInput = {};
+  const whereProcedure: Prisma.ProcedureWhereInput = {};
   if (query.client) whereProcedure.clientId = Number(query.client);
   if (query.procedure) whereProcedure.id = Number(query.procedure);
   if (query.status === "done") whereMilestone.isTriggered = true;
   if (query.status === "pending") whereMilestone.isTriggered = false;
-  
+
   const month = query.month ? Number(query.month) : undefined;
   const year = query.year ? Number(query.year) : undefined;
 
@@ -36,8 +38,12 @@ async function getData(query: any) {
     });
   });
   const dates = Array.from(dateKeys).map(d => new Date(d));
-  const rates = dates.length ? await (prisma as any).uFRate.findMany({ where: { date: { in: dates } } }) : [];
-  const ufRatesMap: Record<string, number> = Object.fromEntries(rates.map((r: any) => [new Date(r.date).toISOString().slice(0,10), Number(r.value)]));
+  const rates = dates.length ? await prisma.uFRate.findMany({ where: { date: { in: dates } } }) : [];
+  const ufRatesMap: Record<string, number> = Object.fromEntries(
+    rates
+      .map((r) => [new Date(r.date).toISOString().slice(0, 10), toNumberSafe(r.value)])
+      .filter(([, v]) => v !== null)
+  );
 
   // Aplanar milestones con contexto
   const rows = proposals.flatMap(p => p.milestones
@@ -53,12 +59,13 @@ async function getData(query: any) {
     })
     .map(m => {
       let clp: number | null = null;
-      if (m.feeUF) {
+      const fee = toNumberSafe(m.feeUF);
+      if (fee !== null) {
         const d = m.isTriggered ? m.triggeredAt : m.dueDate;
         if (d) {
-          const key = d.toISOString().slice(0,10);
+          const key = d.toISOString().slice(0, 10);
           const rateExact = ufRatesMap[key];
-          if (rateExact) clp = Number(m.feeUF) * rateExact;
+          if (rateExact !== undefined) clp = fee * rateExact;
         }
       }
       return {
@@ -68,7 +75,7 @@ async function getData(query: any) {
           : (p.procedures.length > 1 ? "(múltiples)" : (p.procedures[0]?.title || p.procedures[0]?.type || "—")),
         proposal: p.title,
         milestone: m.title,
-        feeUF: m.feeUF as any,
+        feeUF: formatUF(m.feeUF),
         clp,
         date: m.isTriggered ? m.triggeredAt : m.dueDate,
         status: m.isTriggered ? "cumplido" : "pendiente",
@@ -81,7 +88,7 @@ async function getData(query: any) {
   return { rows, clients, procedures };
 }
 
-export default async function HitosPage({ searchParams }: { searchParams: any }) {
+export default async function HitosPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const { rows, clients, procedures } = await getData(searchParams);
   
   return (
@@ -97,14 +104,14 @@ export default async function HitosPage({ searchParams }: { searchParams: any })
             <label className="block text-xs font-medium text-ink mb-1">Cliente</label>
             <select className="select-glass rounded-xl px-3 py-2 w-full" name="client" defaultValue={searchParams.client || ""}>
               <option value="">Todos</option>
-              {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-ink mb-1">Gestión</label>
             <select className="select-glass rounded-xl px-3 py-2 w-full" name="procedure" defaultValue={searchParams.procedure || ""}>
               <option value="">Todas</option>
-              {procedures.map((p: any) => <option key={p.id} value={p.id}>{p.title || p.type}</option>)}
+              {procedures.map((p) => <option key={p.id} value={p.id}>{p.title || p.type}</option>)}
             </select>
           </div>
           <div>
@@ -143,7 +150,7 @@ export default async function HitosPage({ searchParams }: { searchParams: any })
               </tr>
             </thead>
             <tbody>
-              {rows.map((r: any, idx: number) => (
+              {rows.map((r, idx: number) => (
                 <tr key={idx} className="border-t border-white/10 hover:bg-white/5 transition-colors">
                   <td className="font-medium text-ink">{r.client}</td>
                   <td>{r.procedure}</td>

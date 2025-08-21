@@ -1,16 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { fmtCLP } from "@/lib/utils";
-import { parseFilters } from "@/lib/filters";
-import RegionProvinciaSelect from "@/components/RegionProvinciaSelect";
-import { PROCEDURE_TYPES } from "@/lib/constants";
+import { toNumberSafe } from "@/lib/decimal";
+import { parseFilters, type Filters } from "@/lib/filters";
 import { createClientAndProcedure } from "@/app/actions";
 import Toast from "@/components/Toast";
 import SubmitButton from "@/components/SubmitButton";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
-import { STATUS } from "@/lib/constants";
 import { CATEGORY_PREFIX } from "@/lib/procedureRepo";
 import FiltersPanel from "./FiltersPanel";
 import NewProcedureForm from "./NewProcedureForm";
@@ -19,33 +17,28 @@ import ProcedureDetail from "./ProcedureDetail";
 
 export const dynamic = "force-dynamic";
 
-async function getData(query: any) {
-  const params = parseFilters(query);
-  const where: any = {};
-  if (params.client) where.clientId = Number(params.client);
+async function getData(params: Filters) {
+  const where: Prisma.ProcedureWhereInput = {};
+  if (params.client) where.clientId = params.client;
   if (params.status) where.status = params.status;
   if (params.region) where.region = params.region;
   if (params.province) where.province = params.province;
-  
-  // Filtros de categoría y tipo
-  const category = params.category as ("ADMIN"|"JUDICIAL"|"OTROS"|"CORRETAJE"|undefined);
+
+  const category = params.category as "ADMIN" | "JUDICIAL" | "OTROS" | "CORRETAJE" | undefined;
   if (category) {
     where.type = { startsWith: CATEGORY_PREFIX[category] };
   }
   if (params.type) {
-    // Si viene type específico, predomina sobre categoría
-    where.type = query.type;
+    where.type = params.type;
   }
-  
-  // Filtros de tags
-  const tagFilters: any[] = [];
+
+  const tagFilters: Prisma.ProcedureWhereInput[] = [];
   if (params.tagDelegable) tagFilters.push({ generalInfo: { contains: "#Delegable" } });
   if (params.tagPrioridad) tagFilters.push({ generalInfo: { contains: "#Prioridad" } });
-  
   if (tagFilters.length) {
     where.AND = [...(where.AND ?? []), ...tagFilters];
   }
-  
+
   const orderParam = (params.order ?? "lastActionAt_desc") as
     | "createdAt_asc"
     | "createdAt_desc"
@@ -54,17 +47,22 @@ async function getData(query: any) {
   const [field, dir] = orderParam.split("_") as ["createdAt" | "lastActionAt", "asc" | "desc"];
   const sortDir: Prisma.SortOrder = dir;
   const orderBy: Prisma.ProcedureOrderByWithRelationInput[] =
-    field === "createdAt"
-      ? [{ createdAt: sortDir }]
-      : [{ lastActionAt: sortDir }];
-  
+    field === "createdAt" ? [{ createdAt: sortDir }] : [{ lastActionAt: sortDir }];
+
   const list = await prisma.procedure.findMany({ where, include: { client: true }, orderBy });
-  let current = null;
+  let current: Prisma.ProcedureGetPayload<{ include: {
+    client: true;
+    steps: { orderBy: { order: "asc" } };
+    expenses: true;
+    todos: true;
+    waterRights: true;
+    proposal: { include: { milestones: true } };
+  } }> | null = null;
   let ufRatesMap: Record<string, number> = {};
-  
+
   if (params.id) {
     current = await prisma.procedure.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: params.id },
       include: {
         client: true,
         steps: { orderBy: { order: "asc" } },
@@ -72,25 +70,33 @@ async function getData(query: any) {
         todos: true,
         waterRights: true,
         proposal: { include: { milestones: true } },
-      }
+      },
     });
     if (current) {
       const dateKeys = new Set<string>();
-      (current.expenses as any[]).forEach(e => { if (e.paidAt) dateKeys.add(new Date(e.paidAt).toISOString().slice(0,10)); });
-      (current as any).proposal?.milestones?.forEach((m: any) => { if (m.triggeredAt) dateKeys.add(new Date(m.triggeredAt).toISOString().slice(0,10)); });
+      current.expenses.forEach((e) => {
+        if (e.paidAt) dateKeys.add(new Date(e.paidAt).toISOString().slice(0, 10));
+      });
+      current.proposal?.milestones?.forEach((m) => {
+        if (m.triggeredAt) dateKeys.add(new Date(m.triggeredAt).toISOString().slice(0, 10));
+      });
       if (dateKeys.size > 0) {
-        const dates = Array.from(dateKeys).map(d => new Date(d));
+        const dates = Array.from(dateKeys).map((d) => new Date(d));
         const rates = await prisma.uFRate.findMany({ where: { date: { in: dates } } });
-        ufRatesMap = Object.fromEntries(rates.map((r: any) => [new Date(r.date).toISOString().slice(0,10), Number(r.value)]));
+        ufRatesMap = Object.fromEntries(
+          rates
+            .map((r) => [new Date(r.date).toISOString().slice(0, 10), toNumberSafe(r.value)])
+            .filter(([, v]) => v !== null)
+        );
       }
     }
   }
-  
+
   const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
   return { list, current, clients, ufRatesMap };
 }
 
-export default async function GestionesPage({ searchParams }: { searchParams: any }) {
+export default async function GestionesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const filters = parseFilters(searchParams);
   const { list, current, clients, ufRatesMap } = await getData(filters);
 

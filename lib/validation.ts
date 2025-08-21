@@ -60,6 +60,18 @@ export const zTodo = z.object({
   todoId: z.coerce.number().optional(),
 });
 
+export const StepUpdateSchema = z.object({
+  stepId: z.coerce.number().int().positive(),
+  done: z.coerce.boolean(),
+  doneAt: z
+    .string()
+    .datetime()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || undefined),
+  comment: z.string().trim().max(2000).optional(),
+});
+
 export const zFilters = z.object({
   client: z.coerce.number().optional(),
   status: z.string().optional(),

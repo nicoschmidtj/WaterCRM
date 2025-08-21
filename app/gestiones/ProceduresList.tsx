@@ -8,6 +8,7 @@ import { STATUS } from "@/lib/constants";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
+import type { Filters } from "@/lib/filters";
 import { 
   updateStepFromForm, 
   addExpenseFromForm, 
@@ -24,7 +25,7 @@ import { extractTitleFromGeneralInfo, templateLabelForType, formatLastAction } f
 interface ProceduresListProps {
   procedures: any[];
   current: any;
-  searchParams: any;
+  searchParams: Filters;
   ufRatesMap: Record<string, number>;
 }
 
@@ -42,7 +43,7 @@ export default function ProceduresList({
       
       <div className="space-y-3">
         {procedures.length > 0 ? (
-          procedures.map((p: any) => (
+          procedures.map((p) => (
             <div key={p.id} className="space-y-3">
               {/* Procedure Summary */}
               <Link 
@@ -128,7 +129,7 @@ export default function ProceduresList({
                     <div className="p-3 rounded-xl border border-white/10 bg-white/5">
                       <h5 className="text-xs font-medium text-ink mb-2">Derechos de agua</h5>
                       <div className="space-y-2 mb-3">
-                        {current.waterRights.map((w: any) => (
+                          {current.waterRights.map((w) => (
                           <div key={w.id} className="p-2 rounded-lg border border-white/10 bg-white/5">
                             <div className="text-xs">
                               {w.foja} · Nº {w.numero} · {w.anio} · {w.cbr} · {w.naturaleza}
@@ -158,10 +159,11 @@ export default function ProceduresList({
                       <div className="p-3 rounded-xl border border-white/10 bg-white/5">
                         <h5 className="text-xs font-medium text-ink mb-2">Checklist (etapas)</h5>
                         <div className="space-y-2">
-                          {current.steps.map((s: any) => (
+                          {current.steps.map((s) => (
                             <div key={s.id} className="p-2 rounded-lg border border-white/10 bg-white/5">
                               <form action={updateStepFromForm} className="space-y-2">
                                 <input type="hidden" name="stepId" value={s.id} />
+                                <input type="hidden" name="redirectTo" value={`/gestiones?pid=${current.id}`} />
                                 <div className="flex items-center justify-between">
                                   <label className="flex items-center gap-2">
                                     <input type="checkbox" name="done" defaultChecked={s.done} className="text-xs" />
@@ -176,7 +178,7 @@ export default function ProceduresList({
                                 {current.proposalId && current.proposal?.milestones && (
                                                                      <select name="milestoneId" className="select-glass rounded-xl px-3 py-2 w-full text-xs" defaultValue={s.milestoneId ?? ""}>
                                      <option value="">Sin hito</option>
-                                     {current.proposal.milestones.map((m: any) => (
+                                     {current.proposal.milestones.map((m) => (
                                        <option key={m.id} value={m.id}>{m.title}{m.isTriggered ? " (cumplido)" : ""}</option>
                                      ))}
                                    </select>
@@ -190,7 +192,7 @@ export default function ProceduresList({
                       <div className="p-3 rounded-xl border border-white/10 bg-white/5">
                         <h5 className="text-xs font-medium text-ink mb-2">To-Do con vencimiento</h5>
                         <div className="space-y-2 mb-3">
-                          {current.todos.map((t: any) => (
+                          {current.todos.map((t) => (
                             <div key={t.id} className="p-2 rounded-lg border border-white/10 bg-white/5">
                               <div className="text-xs">
                                 {t.text} · {t.dueDate ? new Date(t.dueDate).toLocaleDateString("es-CL") : "sin fecha"}
@@ -214,7 +216,7 @@ export default function ProceduresList({
                     <div className="p-3 rounded-xl border border-white/10 bg-white/5">
                       <h5 className="text-xs font-medium text-ink mb-2">Gastos</h5>
                       <div className="space-y-2 mb-3">
-                        {current.expenses.map((e: any) => {
+                        {current.expenses.map((e) => {
                           const paidDate = e.paidAt ? new Date(e.paidAt) : null;
                           const key = paidDate ? paidDate.toISOString().slice(0,10) : null;
                           const rate = key ? ufRatesMap[key] : undefined;
