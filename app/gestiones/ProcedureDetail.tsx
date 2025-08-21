@@ -6,6 +6,7 @@ import SubmitButton from "@/components/SubmitButton";
 import WaterRightsEditor from "@/components/WaterRightsEditor";
 import { extractTags } from "@/lib/tags";
 import ConfirmForm from "@/components/ConfirmForm";
+import { toNumberDisplay } from "@/lib/decimal";
 
 interface ProcedureDetailProps {
   procedureId: number;
@@ -18,7 +19,7 @@ function fmtDate(d?: Date | null) {
 }
 
 function fmtUF(v: any) {
-  const n = (v && typeof v === "object" && "toNumber" in v) ? v.toNumber() : Number(v);
+  const n = toNumberDisplay(v, { fallback: NaN });
   return isNaN(n) ? "UF —" : `UF ${n.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { fmtCLP } from "@/lib/utils";
+import { parseFilters } from "@/lib/filters";
 import RegionProvinciaSelect from "@/components/RegionProvinciaSelect";
 import { PROCEDURE_TYPES } from "@/lib/constants";
 import { createClientAndProcedure } from "@/app/actions";
@@ -19,32 +20,33 @@ import ProcedureDetail from "./ProcedureDetail";
 export const dynamic = "force-dynamic";
 
 async function getData(query: any) {
+  const params = parseFilters(query);
   const where: any = {};
-  if (query.client) where.clientId = Number(query.client);
-  if (query.status) where.status = query.status;
-  if (query.region) where.region = query.region;
-  if (query.province) where.province = query.province;
+  if (params.client) where.clientId = Number(params.client);
+  if (params.status) where.status = params.status;
+  if (params.region) where.region = params.region;
+  if (params.province) where.province = params.province;
   
   // Filtros de categoría y tipo
-  const category = query.category as ("ADMIN"|"JUDICIAL"|"OTROS"|"CORRETAJE"|undefined);
+  const category = params.category as ("ADMIN"|"JUDICIAL"|"OTROS"|"CORRETAJE"|undefined);
   if (category) {
     where.type = { startsWith: CATEGORY_PREFIX[category] };
   }
-  if (query.type) {
+  if (params.type) {
     // Si viene type específico, predomina sobre categoría
     where.type = query.type;
   }
   
   // Filtros de tags
   const tagFilters: any[] = [];
-  if (query.tagDelegable) tagFilters.push({ generalInfo: { contains: "#Delegable" } });
-  if (query.tagPrioridad) tagFilters.push({ generalInfo: { contains: "#Prioridad" } });
+  if (params.tagDelegable) tagFilters.push({ generalInfo: { contains: "#Delegable" } });
+  if (params.tagPrioridad) tagFilters.push({ generalInfo: { contains: "#Prioridad" } });
   
   if (tagFilters.length) {
     where.AND = [...(where.AND ?? []), ...tagFilters];
   }
   
-  const orderParam = (query.order ?? "lastActionAt_desc") as
+  const orderParam = (params.order ?? "lastActionAt_desc") as
     | "createdAt_asc"
     | "createdAt_desc"
     | "lastActionAt_asc"
@@ -60,9 +62,9 @@ async function getData(query: any) {
   let current = null;
   let ufRatesMap: Record<string, number> = {};
   
-  if (query.id) {
+  if (params.id) {
     current = await prisma.procedure.findUnique({
-      where: { id: Number(query.id) },
+      where: { id: Number(params.id) },
       include: {
         client: true,
         steps: { orderBy: { order: "asc" } },
@@ -89,7 +91,8 @@ async function getData(query: any) {
 }
 
 export default async function GestionesPage({ searchParams }: { searchParams: any }) {
-  const { list, current, clients, ufRatesMap } = await getData(searchParams);
+  const filters = parseFilters(searchParams);
+  const { list, current, clients, ufRatesMap } = await getData(filters);
 
   return (
     <main className="space-y-6">
@@ -106,7 +109,7 @@ export default async function GestionesPage({ searchParams }: { searchParams: an
         {/* Columna Izquierda - Stack */}
         <div className="space-y-6">
           {/* Bloque 1 - Filtros */}
-          <FiltersPanel searchParams={searchParams} clients={clients} />
+          <FiltersPanel searchParams={filters} clients={clients} />
           
           {/* Bloque 2 - Nueva Gestión */}
           <NewProcedureForm clients={clients} />
@@ -122,7 +125,7 @@ export default async function GestionesPage({ searchParams }: { searchParams: an
             <ProceduresList 
               procedures={list} 
               current={current} 
-              searchParams={searchParams}
+              searchParams={filters}
               ufRatesMap={ufRatesMap}
             />
           )}

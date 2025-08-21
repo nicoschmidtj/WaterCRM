@@ -1,40 +1,41 @@
-Set-Location $DST
-
-@"
-# Sistema / IDE
+# Node / General
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-store/
 .DS_Store
 Thumbs.db
+
+# Next.js
+.next/
+out/
+.next/cache/
+.vercel/
+
+# Env
+.env
+.env.*.local
+!.env.example
+
+# Prisma
+prisma/dev.db
+prisma/*.db-journal
+prisma/migrations/*/README.md
+
+# Tailwind / PostCSS
+*.css.map
+
+# Editor/OS
 .vscode/
 .idea/
+*.swp
 
-# Node / Frontend
-node_modules/
+# Build artifacts
 dist/
-build/
-.npm/
-.yarn/
-.pnpm-store/
-.next/
-.turbo/
-.parcel-cache/
 coverage/
 
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# PHP / Composer / Frameworks
-vendor/
-storage/
-cache/
-logs/
-
-# Otros
-*.log
-*.tmp
-.env
-.env.*
-tmp/
-"@ | Out-File -Encoding utf8 .gitignore
+# Windows
+desktop.ini
