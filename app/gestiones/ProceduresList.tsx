@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { fmtCLP } from "@/lib/utils";
+import { toNumberDisplay } from "@/lib/decimal";
 import { STATUS } from "@/lib/constants";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -217,11 +218,12 @@ export default function ProceduresList({
                           const paidDate = e.paidAt ? new Date(e.paidAt) : null;
                           const key = paidDate ? paidDate.toISOString().slice(0,10) : null;
                           const rate = key ? ufRatesMap[key] : undefined;
-                          const clp = rate ? Number(e.amountUF) * rate : null;
+                          const amount = toNumberDisplay(e.amountUF);
+                          const clp = rate ? amount * rate : null;
                           return (
                             <div key={e.id} className="p-2 rounded-lg border border-white/10 bg-white/5">
                               <div className="text-xs">
-                                {e.reason} · {Number(e.amountUF)} UF {rate ? `(≈ ${fmtCLP(clp)})` : "(UF sin tasa)"} · {e.documentType} {e.documentNumber || ""} · {paidDate ? paidDate.toLocaleDateString("es-CL") : "—"}
+                                {e.reason} · {amount} UF {rate ? `(≈ ${fmtCLP(clp)})` : "(UF sin tasa)"} · {e.documentType} {e.documentNumber || ""} · {paidDate ? paidDate.toLocaleDateString("es-CL") : "—"}
                               </div>
                             </div>
                           );
