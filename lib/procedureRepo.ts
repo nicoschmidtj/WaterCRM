@@ -442,6 +442,10 @@ export const TEMPLATES: TemplateSpec[] = [
 
 export const TEMPLATES_BY_KEY = Object.fromEntries(TEMPLATES.map(t => [t.key, t]));
 
+export const TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  TEMPLATES.map(t => [t.key, t.label])
+);
+
 export function listByCategory(cat: TemplateCategory) {
   return TEMPLATES.filter(t => t.category === cat);
 }

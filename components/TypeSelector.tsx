@@ -62,11 +62,15 @@ export default function TypeSelector({
     <div className="space-y-3">
       {/* Selector de Categoría */}
       <div>
-        <label className="form-label block mb-2">Categoría</label>
+        <label htmlFor="type-category" className="form-label block mb-2">
+          Categoría
+        </label>
         <select
+          id="type-category"
+          aria-label="Categoría"
           value={selectedCategory}
           onChange={(e) => handleCategoryChange(e.target.value as TemplateCategory | "")}
-          className="select-glass rounded-xl px-3 py-2 w-full"
+          className="select-glass rounded-xl px-3 py-2 w-full text-white"
         >
           <option value="">Seleccionar categoría...</option>
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
@@ -80,11 +84,15 @@ export default function TypeSelector({
       {/* Selector de Subtipo */}
       {selectedCategory && (
         <div>
-          <label className="form-label block mb-2">Subtipo</label>
+          <label htmlFor="type-subtype" className="form-label block mb-2">
+            Subtipo
+          </label>
           <select
+            id="type-subtype"
+            aria-label="Subtipo"
             value={selectedTypeKey}
             onChange={(e) => handleTypeChange(e.target.value)}
-            className="select-glass rounded-xl px-3 py-2 w-full"
+            className="select-glass rounded-xl px-3 py-2 w-full text-white"
           >
             <option value="">Seleccionar subtipo...</option>
             {getTemplatesForCategory(selectedCategory).map((template) => (

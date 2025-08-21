@@ -14,6 +14,10 @@ import FiltersPanel from "./FiltersPanel";
 import NewProcedureForm from "./NewProcedureForm";
 import ProceduresList from "./ProceduresList";
 import ProcedureDetail from "./ProcedureDetail";
+import KanbanBoard from "./KanbanBoard";
+import { getKanbanData } from "./getKanbanData";
+import Link from "next/link";
+import { moveToStatus, moveToStage } from "@/app/actions/procedures";
 
 export const dynamic = "force-dynamic";
 
@@ -96,18 +100,99 @@ async function getData(params: Filters) {
   return { list, current, clients, ufRatesMap };
 }
 
-export default async function GestionesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function GestionesPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   const filters = parseFilters(searchParams);
-  const { list, current, clients, ufRatesMap } = await getData(filters);
+  const view = searchParams.view === "kanban" ? "kanban" : "list";
+  const kanbanMode = searchParams.mode === "etapas" ? "etapas" : "estado";
+
+  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+
+  if (view === "kanban") {
+    const data = await getKanbanData(searchParams);
+    return (
+      <main className="space-y-6">
+        <Toast />
+
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl md:text-2xl font-medium tracking-wide">Gestiones</h1>
+          <div className="flex gap-3 text-sm">
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "list" } }}
+              className="underline"
+            >
+              Lista
+            </Link>
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban" } }}
+              className="underline"
+            >
+              Kanban
+            </Link>
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban", mode: kanbanMode === "estado" ? "etapas" : "estado" } }}
+              className="underline"
+            >
+              Modo: {kanbanMode === "estado" ? "Estado" : "Etapas"}
+            </Link>
+          </div>
+        </div>
+
+        <FiltersPanel searchParams={filters} clients={clients} />
+
+        {data.typeTabs && (
+          <div className="flex gap-2">
+            {data.typeTabs.map((t) => (
+              <Link
+                key={t.key}
+                href={{ pathname: "/gestiones", query: { ...searchParams, type: t.key, view: "kanban", mode: "etapas" } }}
+                className={`px-2 py-1 rounded ${t.key === data.typeFilter ? "glass" : ""}`}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <KanbanBoard
+          mode={data.mode}
+          typeFilter={data.typeFilter}
+          columns={data.columns}
+          lanes={data.lanes}
+          paging={data.paging}
+          onMove={async (cardId, from, to, index) => {
+            if (data.mode === "estado") {
+              await moveToStatus({ procedureId: cardId, toStatus: to as any });
+            } else if (data.typeFilter) {
+              await moveToStage({ procedureId: cardId, typeKey: data.typeFilter, toStageKey: to });
+            }
+          }}
+        />
+      </main>
+    );
+  }
+
+  const { list, current, ufRatesMap } = await getData(filters);
 
   return (
     <main className="space-y-6">
       <Toast />
-      
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl md:text-2xl font-medium tracking-wide">Gestiones</h1>
-        <span className="text-sm text-ink-muted">{list.length} gestiones</span>
+        <div className="flex gap-3 text-sm">
+          <span className="text-sm text-ink-muted">{list.length} gestiones</span>
+          <Link
+            href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban" } }}
+            className="underline"
+          >
+            Kanban
+          </Link>
+        </div>
       </div>
 
       {/* Layout 3 Bloques */}
@@ -116,7 +201,7 @@ export default async function GestionesPage({ searchParams }: { searchParams: Re
         <div className="space-y-6">
           {/* Bloque 1 - Filtros */}
           <FiltersPanel searchParams={filters} clients={clients} />
-          
+
           {/* Bloque 2 - Nueva Gestión */}
           <NewProcedureForm clients={clients} />
         </div>
@@ -128,9 +213,9 @@ export default async function GestionesPage({ searchParams }: { searchParams: Re
               <ProcedureDetail procedureId={Number(searchParams.pid)} />
             </Card>
           ) : (
-            <ProceduresList 
-              procedures={list} 
-              current={current} 
+            <ProceduresList
+              procedures={list}
+              current={current}
               searchParams={filters}
               ufRatesMap={ufRatesMap}
             />
