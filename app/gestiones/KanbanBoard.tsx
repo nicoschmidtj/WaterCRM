@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -35,12 +36,6 @@ export type KanbanProps = {
   typeFilter?: string | null;
   columns: { key: string; label: string; count: number }[];
   lanes: Record<string, KanbanCard[]>;
-  onMove: (
-    cardId: number,
-    fromCol: string,
-    toCol: string,
-    index: number
-  ) => Promise<void>;
   paging?: Record<string, { hasMore: boolean }>;
   onLoadMore?: (colKey: string) => void;
 };
@@ -50,25 +45,28 @@ function DraggableCard({ card, col }: { card: KanbanCard; col: string }) {
     id: card.id,
     data: { col },
   });
+  const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes;
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const handleTag = (tag: "#Delegable" | "#Prioridad") => {
     startTransition(() => toggleTag({ procedureId: card.id, tag }));
   };
+  const hasDelegable = card.tags?.includes("#Delegable");
+  const hasPrioridad = card.tags?.includes("#Prioridad");
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className="glass rounded-xl p-3 mb-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
-      role="article"
-      tabIndex={0}
-      {...attributes}
+      {...restAttributes}
       {...listeners}
+      role="listitem"
+      tabIndex={0}
       aria-label={`Mover gestión ${card.title}`}
     >
       <div className="font-medium text-sm mb-1">{card.clientName}</div>
@@ -78,21 +76,23 @@ function DraggableCard({ card, col }: { card: KanbanCard; col: string }) {
       </div>
       <div className="flex gap-1 flex-wrap mb-2">
         {card.tags?.map((t) => (
-          <Chip key={t} label={t} />
+          <Chip key={t}>{t}</Chip>
         ))}
       </div>
       <div className="flex gap-2 text-xs">
         <button
           onClick={() => handleTag("#Delegable")}
           className="underline"
-          aria-label="Alternar Delegable"
+          aria-label="Alternar #Delegable"
+          aria-pressed={hasDelegable}
         >
           #Delegable
         </button>
         <button
           onClick={() => handleTag("#Prioridad")}
           className="underline"
-          aria-label="Alternar Prioridad"
+          aria-label="Alternar #Prioridad"
+          aria-pressed={hasPrioridad}
         >
           #Prioridad
         </button>
@@ -106,19 +106,30 @@ export default function KanbanBoard({
   typeFilter,
   columns,
   lanes,
-  onMove,
   paging = {},
   onLoadMore,
 }: KanbanProps) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
     const fromCol = active.data.current?.col as string;
     const toCol = (over.data.current?.col as string) || (over.id as string);
     if (!fromCol || !toCol || fromCol === toCol) return;
-    await onMove(Number(active.id), fromCol, toCol, 0);
+    startTransition(async () => {
+      if (mode === "estado") {
+        await moveToStatus({
+          procedureId: Number(active.id),
+          toStatus: toCol as "PENDING" | "IN_PROGRESS" | "DONE",
+        });
+      } else if (typeFilter) {
+        await moveToStage({ procedureId: Number(active.id), typeKey: typeFilter, toStageKey: toCol, strict: false });
+      }
+      router.refresh();
+    });
   };
 
   return (
@@ -155,7 +166,7 @@ function Lane({
         <h2 className="text-white font-medium">{column.label}</h2>
         <span className="glass px-2 py-0.5 text-xs rounded-full">{column.count}</span>
       </header>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" role="list">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <DraggableCard key={card.id} card={card} col={column.key} />
