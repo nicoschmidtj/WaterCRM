@@ -267,4 +267,4 @@ export async function updateProcedureMetaFromForm(formData: FormData) {
   revalidatePath("/gestiones");
 }
 
-export { moveToStatus, moveToStage, toggleTag } from "@/app/gestiones/kanban-actions";
+
