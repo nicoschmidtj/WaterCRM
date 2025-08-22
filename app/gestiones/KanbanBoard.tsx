@@ -8,6 +8,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  closestCorners,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -40,11 +42,9 @@ export type KanbanProps = {
   onLoadMore?: (colKey: string) => void;
 };
 
-function DraggableCard({ card, col }: { card: KanbanCard; col: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: card.id,
-    data: { col },
-  });
+function DraggableCard({ card }: { card: KanbanCard }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: `card:${card.id}` });
   const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes;
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -62,27 +62,32 @@ function DraggableCard({ card, col }: { card: KanbanCard; col: string }) {
     <div
       ref={setNodeRef}
       style={style}
-      className="glass rounded-xl p-3 mb-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+      className={`glass rounded-xl border border-white/10 p-3 shadow-sm hover:shadow-md transition-all will-change-transform ${
+        isDragging ? "ring-1 ring-white/20" : ""
+      }`}
       {...restAttributes}
       {...listeners}
       role="listitem"
       tabIndex={0}
       aria-label={`Mover gestión ${card.title}`}
     >
-      <div className="font-medium text-sm mb-1">{card.clientName}</div>
-      <div className="text-xs text-ink-muted mb-2">
-        {card.title}
-        {card.templateLabel && ` – ${card.templateLabel}`}
+      <div className="font-medium text-ink truncate">{card.title}</div>
+      <div className="text-xs text-ink-muted flex gap-2 flex-wrap mt-1">
+        <span>{card.clientName}</span>
+        {card.templateLabel && <span>{card.templateLabel}</span>}
+        {card.lastActionAt && <span>{new Date(card.lastActionAt).toLocaleDateString()}</span>}
       </div>
-      <div className="flex gap-1 flex-wrap mb-2">
+      <div className="flex gap-1 flex-wrap mt-2">
         {card.tags?.map((t) => (
-          <Chip key={t}>{t}</Chip>
+          <Chip key={t} className="badge-glass text-[10px] px-2 py-0.5">
+            {t}
+          </Chip>
         ))}
       </div>
-      <div className="flex gap-2 text-xs">
+      <div className="flex gap-2 mt-2">
         <button
           onClick={() => handleTag("#Delegable")}
-          className="underline"
+          className={`btn-glass btn-xs ${hasDelegable ? "ring-1 ring-cyan-300/60" : ""}`}
           aria-label="Alternar #Delegable"
           aria-pressed={hasDelegable}
         >
@@ -90,7 +95,7 @@ function DraggableCard({ card, col }: { card: KanbanCard; col: string }) {
         </button>
         <button
           onClick={() => handleTag("#Prioridad")}
-          className="underline"
+          className={`btn-glass btn-xs ${hasPrioridad ? "ring-1 ring-cyan-300/60" : ""}`}
           aria-label="Alternar #Prioridad"
           aria-pressed={hasPrioridad}
         >
@@ -113,28 +118,47 @@ export default function KanbanBoard({
   const [, startTransition] = useTransition();
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const findColumnKeyByCardId = (cardId: string) => {
+    for (const key of Object.keys(lanes)) {
+      if (lanes[key]?.some((c) => `card:${c.id}` === cardId)) return key;
+    }
+    return null;
+  };
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over) return;
-    const fromCol = active.data.current?.col as string;
-    const toCol = (over.data.current?.col as string) || (over.id as string);
-    if (!fromCol || !toCol || fromCol === toCol) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const fromCol = findColumnKeyByCardId(activeId);
+    const toCol = overId.startsWith("lane:")
+      ? overId.replace("lane:", "")
+      : findColumnKeyByCardId(overId);
+    if (!toCol || !fromCol || toCol === fromCol) return;
     startTransition(async () => {
       if (mode === "estado") {
         await moveToStatus({
-          procedureId: Number(active.id),
-          toStatus: toCol as "PENDING" | "IN_PROGRESS" | "DONE",
+          procedureId: Number(activeId.replace("card:", "")),
+          toStatus: toCol as any,
         });
       } else if (typeFilter) {
-        await moveToStage({ procedureId: Number(active.id), typeKey: typeFilter, toStageKey: toCol, strict: false });
+        await moveToStage({
+          procedureId: Number(activeId.replace("card:", "")),
+          typeKey: typeFilter,
+          toStageKey: toCol,
+          strict: false,
+        });
       }
       router.refresh();
     });
   };
 
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0,1fr))` }}>
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <div className="flex gap-4 overflow-x-auto pb-4">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragEnd={handleDragEnd}
+      >
         {columns.map((col) => (
           <Lane
             key={col.key}
@@ -160,16 +184,24 @@ function Lane({
   paging?: { hasMore: boolean };
   onLoadMore?: (colKey: string) => void;
 }) {
+  const { setNodeRef } = useDroppable({ id: `lane:${column.key}` });
   return (
-    <div className="glass rounded-2xl p-4 flex flex-col h-[calc(100vh-180px)]">
-      <header className="flex items-center justify-between mb-2">
+    <div className="flex flex-col gap-3 min-w-[320px] max-w-[420px] w-full">
+      <header className="sticky top-0 z-10 glass border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between backdrop-blur-md">
         <h2 className="text-white font-medium">{column.label}</h2>
-        <span className="glass px-2 py-0.5 text-xs rounded-full">{column.count}</span>
+        <span className="badge-glass text-[11px] px-2 py-0.5">{column.count}</span>
       </header>
-      <div className="flex-1 overflow-auto" role="list">
-        <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+      <div
+        ref={setNodeRef}
+        className="mt-2 flex-1 overflow-auto rounded-xl border border-white/10 bg-white/5 p-2 space-y-2"
+        role="list"
+      >
+        <SortableContext
+          items={cards.map((c) => `card:${c.id}`)}
+          strategy={verticalListSortingStrategy}
+        >
           {cards.map((card) => (
-            <DraggableCard key={card.id} card={card} col={column.key} />
+            <DraggableCard key={card.id} card={card} />
           ))}
         </SortableContext>
         {paging?.hasMore && onLoadMore && (
