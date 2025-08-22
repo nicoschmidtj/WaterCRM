@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { toggleTag } from "@/app/actions/procedures";
+import { moveToStatus, moveToStage, toggleTag } from "@/app/gestiones/kanban-actions";
 import Chip from "@/components/ui/Chip";
 
 export type KanbanCard = {
