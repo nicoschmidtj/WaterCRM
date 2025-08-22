@@ -1,14 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { fmtCLP } from "@/lib/utils";
 import { toNumberSafe } from "@/lib/decimal";
 import { parseFilters, type Filters } from "@/lib/filters";
-import { createClientAndProcedure } from "@/app/actions";
 import Toast from "@/components/Toast";
-import SubmitButton from "@/components/SubmitButton";
 import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Chip from "@/components/ui/Chip";
 import { CATEGORY_PREFIX } from "@/lib/procedureRepo";
 import FiltersPanel from "./FiltersPanel";
 import NewProcedureForm from "./NewProcedureForm";
@@ -17,7 +12,6 @@ import ProcedureDetail from "./ProcedureDetail";
 import KanbanBoard from "./KanbanBoard";
 import { getKanbanData } from "./getKanbanData";
 import Link from "next/link";
-import { moveToStatus, moveToStage } from "@/app/actions/procedures";
 
 export const dynamic = "force-dynamic";
 
@@ -163,13 +157,6 @@ export default async function GestionesPage({
           columns={data.columns}
           lanes={data.lanes}
           paging={data.paging}
-          onMove={async (cardId, from, to, index) => {
-            if (data.mode === "estado") {
-              await moveToStatus({ procedureId: cardId, toStatus: to as any });
-            } else if (data.typeFilter) {
-              await moveToStage({ procedureId: cardId, typeKey: data.typeFilter, toStageKey: to });
-            }
-          }}
         />
       </main>
     );
