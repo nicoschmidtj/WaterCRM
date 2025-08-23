@@ -1,19 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { fmtCLP } from "@/lib/utils";
 import { toNumberSafe } from "@/lib/decimal";
 import { parseFilters, type Filters } from "@/lib/filters";
-import { createClientAndProcedure } from "@/app/actions";
 import Toast from "@/components/Toast";
-import SubmitButton from "@/components/SubmitButton";
 import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Chip from "@/components/ui/Chip";
 import { CATEGORY_PREFIX } from "@/lib/procedureRepo";
 import FiltersPanel from "./FiltersPanel";
 import NewProcedureForm from "./NewProcedureForm";
 import ProceduresList from "./ProceduresList";
 import ProcedureDetail from "./ProcedureDetail";
+import KanbanBoard from "./KanbanBoard";
+import { getKanbanData } from "./getKanbanData";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -96,18 +94,97 @@ async function getData(params: Filters) {
   return { list, current, clients, ufRatesMap };
 }
 
-export default async function GestionesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function GestionesPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   const filters = parseFilters(searchParams);
-  const { list, current, clients, ufRatesMap } = await getData(filters);
+  const view = searchParams.view === "kanban" ? "kanban" : "list";
+  const selectedTypes = filters.type?.split(",").filter(Boolean) ?? [];
+  const defaultMode = selectedTypes.length === 1 ? "etapas" : "estado";
+  const kanbanMode =
+    searchParams.mode === "etapas" || searchParams.mode === "estado"
+      ? (searchParams.mode as "etapas" | "estado")
+      : defaultMode;
+
+  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+
+  if (view === "kanban") {
+    const data = await getKanbanData({ ...searchParams, mode: kanbanMode });
+    return (
+      <main className="space-y-6">
+        <Toast />
+
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl md:text-2xl font-medium tracking-wide">Gestiones</h1>
+          <div className="flex gap-3 text-sm">
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "list" } }}
+              className="underline"
+            >
+              Lista
+            </Link>
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban" } }}
+              className="underline"
+            >
+              Kanban
+            </Link>
+            <Link
+              href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban", mode: kanbanMode === "estado" ? "etapas" : "estado" } }}
+              className="underline"
+            >
+              Modo: {kanbanMode === "estado" ? "Estado" : "Etapas"}
+            </Link>
+          </div>
+        </div>
+
+        <FiltersPanel searchParams={filters} clients={clients} />
+
+        {data.typeTabs && (
+          <div className="flex gap-2">
+            {data.typeTabs.map((t) => (
+              <Link
+                key={t.key}
+                href={{ pathname: "/gestiones", query: { ...searchParams, type: t.key, view: "kanban", mode: "etapas" } }}
+                className={`px-2 py-1 rounded ${t.key === data.typeFilter ? "glass" : ""}`}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <KanbanBoard
+          mode={data.mode}
+          typeFilter={data.typeFilter}
+          columns={data.columns}
+          lanes={data.lanes}
+          paging={data.paging}
+        />
+      </main>
+    );
+  }
+
+  const { list, current, ufRatesMap } = await getData(filters);
 
   return (
     <main className="space-y-6">
       <Toast />
-      
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl md:text-2xl font-medium tracking-wide">Gestiones</h1>
-        <span className="text-sm text-ink-muted">{list.length} gestiones</span>
+        <div className="flex gap-3 text-sm">
+          <span className="text-sm text-ink-muted">{list.length} gestiones</span>
+          <Link
+            href={{ pathname: "/gestiones", query: { ...searchParams, view: "kanban" } }}
+            className="underline"
+          >
+            Kanban
+          </Link>
+        </div>
       </div>
 
       {/* Layout 3 Bloques */}
@@ -116,7 +193,7 @@ export default async function GestionesPage({ searchParams }: { searchParams: Re
         <div className="space-y-6">
           {/* Bloque 1 - Filtros */}
           <FiltersPanel searchParams={filters} clients={clients} />
-          
+
           {/* Bloque 2 - Nueva Gestión */}
           <NewProcedureForm clients={clients} />
         </div>
@@ -128,9 +205,9 @@ export default async function GestionesPage({ searchParams }: { searchParams: Re
               <ProcedureDetail procedureId={Number(searchParams.pid)} />
             </Card>
           ) : (
-            <ProceduresList 
-              procedures={list} 
-              current={current} 
+            <ProceduresList
+              procedures={list}
+              current={current}
               searchParams={filters}
               ufRatesMap={ufRatesMap}
             />
