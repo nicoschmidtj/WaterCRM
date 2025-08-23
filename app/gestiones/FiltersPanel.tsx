@@ -1,9 +1,13 @@
+"use client";
+
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { STATUS } from "@/lib/constants";
-import { TEMPLATES, CATEGORY_LABELS, groupTemplatesByCategory, type TemplateCategory } from "@/lib/procedureRepo";
+import { CATEGORY_LABELS, groupTemplatesByCategory, type TemplateCategory } from "@/lib/procedureRepo";
 import RegionProvinciaSelect from "@/components/RegionProvinciaSelect";
 import type { Filters } from "@/lib/filters";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 
 interface FiltersPanelProps {
   searchParams: Filters;
@@ -12,11 +16,52 @@ interface FiltersPanelProps {
 
 export default function FiltersPanel({ searchParams, clients }: FiltersPanelProps) {
   const params = searchParams;
+  const router = useRouter();
+  const search = useSearchParams();
+  const forceKanban = search.get("view") === "kanban";
+
+  const pushWithMergedParams = useCallback(
+    (next: Record<string, string | null | undefined>) => {
+      const sp = new URLSearchParams(search.toString());
+      Object.entries(next).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === "") sp.delete(k);
+        else sp.set(k, String(v));
+      });
+      if (sp.get("view") === "kanban" || forceKanban) sp.set("view", "kanban");
+      router.push(`/gestiones?${sp.toString()}`);
+    },
+    [router, search, forceKanban]
+  );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const getSelectedTypes = () => {
+      const val = fd.get("type");
+      return val ? String(val).split(",").filter(Boolean) : [];
+    };
+    const types = getSelectedTypes();
+    const isSingle = types.length === 1;
+    pushWithMergedParams({
+      client: fd.get("client")?.toString() || null,
+      status: fd.get("status")?.toString() || null,
+      category: fd.get("category")?.toString() || null,
+      type: types.join(","),
+      region: fd.get("region")?.toString() || null,
+      province: fd.get("province")?.toString() || null,
+      order: fd.get("order")?.toString() || null,
+      tagDelegable: fd.get("tagDelegable") ? "1" : null,
+      tagPrioridad: fd.get("tagPrioridad") ? "1" : null,
+      mode: isSingle ? "etapas" : "estado",
+      typeFilter: isSingle ? types[0] : null,
+    });
+  };
+
   return (
     <Card className="glass">
       <h3 className="text-base md:text-lg font-medium mb-4">Filtros</h3>
-      
-      <form className="space-y-4">
+
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="filtro-cliente" className="block text-xs font-medium text-ink mb-1">Cliente</label>

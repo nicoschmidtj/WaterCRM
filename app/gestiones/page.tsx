@@ -101,12 +101,17 @@ export default async function GestionesPage({
 }) {
   const filters = parseFilters(searchParams);
   const view = searchParams.view === "kanban" ? "kanban" : "list";
-  const kanbanMode = searchParams.mode === "etapas" ? "etapas" : "estado";
+  const selectedTypes = filters.type?.split(",").filter(Boolean) ?? [];
+  const defaultMode = selectedTypes.length === 1 ? "etapas" : "estado";
+  const kanbanMode =
+    searchParams.mode === "etapas" || searchParams.mode === "estado"
+      ? (searchParams.mode as "etapas" | "estado")
+      : defaultMode;
 
   const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
 
   if (view === "kanban") {
-    const data = await getKanbanData(searchParams);
+    const data = await getKanbanData({ ...searchParams, mode: kanbanMode });
     return (
       <main className="space-y-6">
         <Toast />
